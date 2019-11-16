@@ -9,17 +9,8 @@ Scanning to a row (ie. by calling `QueryRow()`) which returns the row interface 
 To scan to a struct by passing in a struct, use the rows interface  (ie. `Query()`).
 
 
+#### Scan to standard types
 ```go
-// scanning to types
-type JSON struct {
-    Str      string         `json:"str"`
-    Int      int            `json:"int"`
-    Embedded EmbeddedStruct `json:"embedded"`
-    Ignore   string         `json:"-"`
-}
-type EmbeddedStruct struct {
-    Bool bool `json:"data"`
-}
 var (
     ID     uint32
     Int    int
@@ -29,11 +20,10 @@ var (
     Bool   bool
     Bytes  []byte
     Slice  []string
-    Json   JSON
 )
 
 conn, _ := pgx.ConnectConfig(ctxb, "postgres://postgres:@localhost:5432/pgxscan?sslmode=disable")
-stmt := `SELECT "id", "int", "float_32", "string", "time", "bool", "bytes", "string_slice", "json_b" FROM "test" WHERE id = $1`
+stmt := `SELECT "id", "int", "float_32", "string", "time", "bool", "bytes", "string_slice" FROM "test" WHERE id = $1`
 row := conn.QueryRow(context.Background(), stmt, 1)
 
 _ := pgxscan.NewScanner(row).Scan(
@@ -45,10 +35,40 @@ _ := pgxscan.NewScanner(row).Scan(
     &Bool,
     &Bytes,
     &Slice,
-    &Json,
 )
+```
 
+#### Scan to standard types from `[]interface{}`
+```go
+var (
+    ID     uint32
+    Int    int
+    Float  float32
+    String string
+    Time   time.Time
+    Bool   bool
+    Bytes  []byte
+    Slice  []string
+)
+dst := []interface{}{
+    &ID,
+    &Int,
+    &Float,
+    &String,
+    &Time,
+    &Bool,
+    &Bytes,
+    &Slice,
+}
+conn, _ := pgx.ConnectConfig(ctxb, "postgres://postgres:@localhost:5432/pgxscan?sslmode=disable")
+stmt := `SELECT "id", "int", "float_32", "string", "time", "bool", "bytes", "string_slice" FROM "test" WHERE id = $1`
+row := conn.QueryRow(context.Background(), stmt, 1)
 
+_ := pgxscan.NewScanner(row).Scan(dst)
+```
+
+#### Scan to struct fields
+```go
 type TestStruct struct {
     ID uint32 `db:"id"`
 
@@ -61,6 +81,15 @@ type TestStruct struct {
     Bytes   []byte    `db:"bytes"`
     StringSlice []string  `db:"string_slice"`
     JSONB JSON  `json:"json_b" db:"json_b"`
+}
+type JSON struct {
+    Str      string         `json:"str"`
+    Int      int            `json:"int"`
+    Embedded EmbeddedStruct `json:"embedded"`
+    Ignore   string         `json:"-"`
+}
+type EmbeddedStruct struct {
+    Bool bool `json:"data"`
 }
 
 // scanning to pre defined struct fields
@@ -78,11 +107,11 @@ _ := pgxscan.NewScanner(row).Scan(
     &dst.StringSlice,
     &dst.JSONB,
 )
-
 ``` 
 
 ### For the Rows interface
-The Rows interface exposes more data like, returned column names, which allows us to scan into a without pre defining the values first.
+The Rows interface exposes more data like, returned column names, which allows us to scan into a without pre defining the values first. 
+But all the previous examples will also work for rows too.
 
 #### Scan to a struct
 ```go
@@ -99,8 +128,7 @@ if err := pgxscan.NewScanner(rows).Scan(&dst); err != nil {
 #### Scan to slice of structs
 ```go
 stmt := `SELECT "id", "int", "float_32", "string", "time", "bool", "bytes", "string_slice", "json_b" FROM "test" ORDER BY "id" ASC LIMIT 2`
-rows, err := conn.Query(context.Background(), stmt)
-rt.NoError(err)
+rows, _ := conn.Query(context.Background(), stmt)
 
 var dst []TestStruct
 if err := pgxscan.NewScanner(rows).Scan(&dst); err != nil {
@@ -140,8 +168,7 @@ FROM
 	addresses
 `
 	// aliased address, line_1, and city notation.
-	rows, err := conn.Query(context.Background(), stmt, 1)
-	rt.NoError(err)
+	rows, _ := conn.Query(context.Background(), stmt, 1)
 
 	type (
 		Address struct {
@@ -189,8 +216,7 @@ FROM
 	addresses
 `
 	// note that the "id" column is not being selected, which removes the naming conflict therefore no aliasing is necessary
-	rows, err := conn.Query(context.Background(), stmt, 1)
-	rt.NoError(err)
+	rows, _ := conn.Query(context.Background(), stmt, 1)
 
 	type (
 		Address struct {
