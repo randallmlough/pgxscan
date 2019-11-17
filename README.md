@@ -137,8 +137,8 @@ if err := pgxscan.NewScanner(rows).Scan(&dst); err != nil {
 ```
 
 #### Scan to struct with join table
-There's two ways to handle join tables. Either use the struct tag `scan:"table"` or `scan:"follow"`. `scan table` will annotate the struct to something like `"table_one.column"` this is particularly useful if joining tables that have column name conflicts. However, you will have to alias the sql column to match.
-`scan follow` wont annotate and instead go into the struct and add the field names to the map. If you know you won't have column name conflicts this will work fine and no aliasing is required.
+There's two ways to handle join tables. Either use the struct tag `scan:"notate"` or `scan:"follow"`. `scan notate` will dot notate the struct to something like `"table_one.column"` this is particularly useful if joining tables that have column name conflicts. However, you will have to alias the sql column to match.
+`scan follow` wont dot notate and instead go into the struct and add the field names to the map. If you know you won't have column name conflicts this will work fine and no aliasing is required.
 
 **Example with aliasing**
 ```go
@@ -167,7 +167,7 @@ FROM
 	usr,
 	addresses
 `
-// aliased address, line_1, and city notation.
+// Note the aliased dot notated SELECT's for address, line_1, and city.
 rows, _ := conn.Query(context.Background(), stmt, 1)
 
 type (
@@ -180,7 +180,7 @@ type (
         ID      uint32
         Name    string
         Email   string
-        Address Address `scan:"table"` // table annotates the struct
+        Address Address `scan:"notate"` // table dot notates the struct
     }
 )
 var user User
@@ -215,7 +215,7 @@ FROM
 	usr,
 	addresses
 `
-// note that the "id" column is not being selected, which removes the naming conflict therefore no aliasing is necessary
+// note that the "id" column for address is not being selected, which removes the naming conflict therefore no aliasing is necessary
 rows, _ := conn.Query(context.Background(), stmt, 1)
 
 type (
@@ -227,7 +227,7 @@ type (
         ID      uint32
         Name    string
         Email   string
-        Address Address `scan:"follow"` // follow inspects the struct and adds the fields without being annotated. 
+        Address Address `scan:"follow"` // follow inspects the struct and adds the fields without being dot notated. 
     }
 )
 var user User

@@ -2,7 +2,7 @@ package pgxscan
 
 import (
 	"github.com/jackc/pgx/v4"
-	"github.com/randallmlough/sqlmapping"
+	"github.com/randallmlough/sqlmaper"
 	"reflect"
 )
 
@@ -41,7 +41,7 @@ func (r *rows) Scan(i ...interface{}) error {
 	defer r.Close()
 	switch val.Kind() {
 	case reflect.Slice:
-		sliceOf := sqlmapping.GetSliceElementType(val)
+		sliceOf := sqlmaper.GetSliceElementType(val)
 		for r.Next() {
 			sliceVal := reflect.New(sliceOf)
 
@@ -52,7 +52,7 @@ func (r *rows) Scan(i ...interface{}) error {
 			if err := ScanStruct(r.rows.Scan, sliceVal.Interface(), cols); err != nil {
 				return err
 			}
-			sqlmapping.AppendSliceElement(val, sliceVal)
+			sqlmaper.AppendSliceElement(val, sliceVal)
 		}
 	case reflect.Struct:
 		for r.Next() {

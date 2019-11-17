@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v4"
-	"github.com/randallmlough/sqlmapping"
+	"github.com/randallmlough/sqlmaper"
 	"reflect"
 	"time"
 )
@@ -42,7 +42,7 @@ func ScanStruct(scan scannerFunc, i interface{}, cols []string) error {
 	if cols == nil {
 		return ErrNoCols
 	}
-	cm, err := sqlmapping.GetColumnMap(i)
+	cm, err := sqlmaper.GetColumnMap(i)
 	if err != nil {
 		return err
 	}
@@ -67,14 +67,14 @@ func ScanStruct(scan scannerFunc, i interface{}, cols []string) error {
 		record[col] = scans[index]
 	}
 
-	sqlmapping.AssignStructVals(i, record, cm)
+	sqlmaper.AssignStructVals(i, record, cm)
 
 	return nil
 }
 
 func validate(scan Scanner, i interface{}) (reflect.Value, error) {
 	val := reflect.ValueOf(i)
-	if !sqlmapping.IsPointer(val.Kind()) {
+	if !sqlmaper.IsPointer(val.Kind()) {
 		return reflect.Value{}, errors.New("destination must be a pointer")
 	}
 

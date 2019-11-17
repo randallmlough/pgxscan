@@ -459,7 +459,7 @@ FROM
 			ID      uint32
 			Name    string
 			Email   string
-			Address Address `scan:"table"`
+			Address Address `scan:"notate"`
 		}
 	)
 	var user User
