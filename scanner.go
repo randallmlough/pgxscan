@@ -25,14 +25,42 @@ func unableToFindFieldError(col string) error {
 // NewScanner takes in a scanner returns a scanner
 // Since the pgx row and rows interface both have a `Scan(v ...interface{}) error` method,
 // either one can be passed as the argument and scanner will take care of the rest.
-func NewScanner(src Scanner) Scanner {
+func NewScanner(src Scanner, opts ...Option) Scanner {
+	cfg := &Config{
+		ReturnErrNoRowsForRows: true,
+	}
+	for _, opt := range opts {
+		opt.apply(cfg)
+	}
 	switch s := src.(type) {
 	case pgx.Rows:
-		return &rows{rows: s}
+		return &rows{rows: s, cfg: cfg}
 	case pgx.Row:
-		return &row{row: s}
+		return &row{row: s, cfg: cfg}
 	}
 	return nil
+}
+
+type Config struct {
+	ReturnErrNoRowsForRows bool
+}
+
+type Option interface {
+	apply(*Config)
+}
+
+// optionFunc wraps a func so it satisfies the Option interface.
+type optionFunc func(*Config)
+
+func (f optionFunc) apply(s *Config) {
+	f(s)
+}
+
+// ErrNoRowsQuery sets whether or not a pgx.ErrNoRows error should be returned on a query that has no rows
+func ErrNoRowsQuery(b bool) Option {
+	return optionFunc(func(cfg *Config) {
+		cfg.ReturnErrNoRowsForRows = b
+	})
 }
 
 var ErrNoCols = errors.New("columns can not be nil")
@@ -72,23 +100,25 @@ func ScanStruct(scan scannerFunc, i interface{}, cols []string) error {
 	return nil
 }
 
-func validate(scan Scanner, i interface{}) (reflect.Value, error) {
+func validate(i interface{}) (reflect.Value, error) {
 	val := reflect.ValueOf(i)
-	if !sqlmaper.IsPointer(val.Kind()) {
+	if val.Kind() != reflect.Ptr {
 		return reflect.Value{}, errors.New("destination must be a pointer")
 	}
 
-	if val.Kind() == reflect.Ptr && !val.Elem().CanSet() {
-		return reflect.Value{}, errors.New("destination must be initialized")
+	if !val.Elem().CanSet() {
+		return reflect.Value{}, errors.New("destination must be initialized. Don't use var foo *Foo. Use foo := new(Foo) or foo := &Foo{}")
 	}
 
-	val = reflect.Indirect(val)
 	if val.Kind() == reflect.Ptr {
 		if val.IsNil() {
 			v := reflect.New(val.Type().Elem())
-			if err := scan.Scan(v.Interface()); err != nil {
-				return reflect.Value{}, err
-			}
+			// TODO: refactoring required to handle non initialized nil values like, `var foo *Foo`
+			// the previous recursion call below worked, however, it limits the possibility of doing post processing after close,
+			// such as rows returned, which is more useful than accepting nil values.
+			//if err := scan.Scan(v.Interface()); err != nil {
+			//	return reflect.Value{}, err
+			//}
 			val.Set(v)
 		} else {
 			val = val.Elem()
