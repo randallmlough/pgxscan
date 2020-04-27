@@ -9,6 +9,7 @@ import (
 type rows struct {
 	rows    pgx.Rows
 	columns []string
+	cfg     *Config
 }
 
 // Next prepares the next row for Scanning. See sql.Rows#Next for more
@@ -24,7 +25,7 @@ func (r *rows) Err() error {
 }
 
 // ScanStruct will scan the current row into i.
-func (r *rows) Scan(i ...interface{}) error {
+func (r *rows) Scan(i ...interface{}) (err error) {
 	if i == nil {
 		return nil
 	} else if isVariadic(i...) {
@@ -33,12 +34,19 @@ func (r *rows) Scan(i ...interface{}) error {
 		return r.ScanVal(ii...)
 	}
 
-	val, err := validate(r, i[0])
-	if err != nil {
-		return err
+	val, valErr := validate(i[0])
+	if valErr != nil {
+		err = valErr
+		return
 	}
 
-	defer r.Close()
+	var rowCount int64
+	defer func() {
+		r.Close()
+		if r.cfg.ReturnErrNoRowsForRows && err == nil && rowCount == 0 {
+			err = pgx.ErrNoRows
+		}
+	}()
 	switch val.Kind() {
 	case reflect.Slice:
 		sliceOf := sqlmaper.GetSliceElementType(val)
@@ -49,10 +57,12 @@ func (r *rows) Scan(i ...interface{}) error {
 			for _, field := range r.rows.FieldDescriptions() {
 				cols = append(cols, string(field.Name))
 			}
-			if err := ScanStruct(r.rows.Scan, sliceVal.Interface(), cols); err != nil {
-				return err
+			if ssErr := ScanStruct(r.rows.Scan, sliceVal.Interface(), cols); ssErr != nil {
+				err = ssErr
+				return
 			}
 			sqlmaper.AppendSliceElement(val, sliceVal)
+			rowCount++
 		}
 	case reflect.Struct:
 		for r.Next() {
@@ -61,10 +71,12 @@ func (r *rows) Scan(i ...interface{}) error {
 				for _, field := range r.rows.FieldDescriptions() {
 					cols = append(cols, string(field.Name))
 				}
-				if err := ScanStruct(r.rows.Scan, val.Addr().Interface(), cols); err != nil {
-					return err
+				if ssErr := ScanStruct(r.rows.Scan, val.Addr().Interface(), cols); ssErr != nil {
+					err = ssErr
+					return
 				}
 			}
+			rowCount++
 		}
 	}
 	return r.Err()

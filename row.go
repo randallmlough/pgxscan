@@ -7,6 +7,7 @@ import (
 type row struct {
 	row     pgx.Row
 	columns []string
+	cfg     *Config
 }
 
 func (r *row) Scan(i ...interface{}) error {
