@@ -323,6 +323,11 @@ func Test_isBuiltinPointers(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "byteToPointer",
+			test: byteToPtr([]byte(`abc`)),
+			want: true,
+		},
+		{
 			name: "float32",
 			test: float32ToPtr(float32(1.56)),
 			want: true,
