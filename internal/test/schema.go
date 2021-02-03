@@ -5,9 +5,11 @@ import (
 )
 
 const schema = `
-        DROP TABLE IF EXISTS "test";
-        CREATE  TABLE "test" (
-            "id" SERIAL PRIMARY KEY NOT NULL,
+		DROP TABLE IF EXISTS "test";
+		DROP TABLE IF EXISTS "address";
+		DROP TABLE IF EXISTS "users";
+		CREATE TABLE "test" (
+			"id" SERIAL PRIMARY KEY NOT NULL,
 			"int" INT,
 			"int_8" SMALLINT,
 			"int_16" SMALLINT,
@@ -34,7 +36,31 @@ const schema = `
 			"json_b" jsonb,
 			"map" jsonb
 		);
-    `
+		CREATE TABLE "users" (
+			"id" SERIAL PRIMARY KEY NOT NULL,
+			"name" VARCHAR,
+			"email" VARCHAR
+		);
+		CREATE TABLE "address" (
+			"id" SERIAL PRIMARY KEY NOT NULL,
+			"user_id" INT NOT NULL,
+			"line_1" VARCHAR,
+			"city" VARCHAR,
+
+			CONSTRAINT fk_user_address FOREIGN KEY (user_id) REFERENCES users(id)
+		);
+
+		INSERT INTO "users" (id, name, email)
+		   VALUES (1, 'user01', 'user01@email.com'),
+		          (2, 'user02', 'user02@email.com'),
+		          (3, 'user03', 'user03@email.com')
+		;
+
+		INSERT INTO "address" (id, user_id, line_1, city)
+		   VALUES (1, 1, 'line01_user01', 'city01'),
+		          (2, 2, 'line02_user02', 'city02')
+		;
+	`
 
 var TestCols = []string{
 	"int",

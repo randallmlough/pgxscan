@@ -466,5 +466,15 @@ FROM
 	if err := NewScanner(rows).Scan(&user); err != nil {
 		rt.NoError(err)
 	}
-	fmt.Println(user)
+
+	rt.Equal(User{
+		ID:    1,
+		Name:  "user01",
+		Email: "user01@email.com",
+		Address: Address{
+			ID:    1,
+			Line1: "line01_user01",
+			City:  "city01",
+		},
+	}, user)
 }

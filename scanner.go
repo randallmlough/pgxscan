@@ -110,7 +110,7 @@ func validate(i interface{}) (reflect.Value, error) {
 		return reflect.Value{}, errors.New("destination must be initialized. Don't use var foo *Foo. Use foo := new(Foo) or foo := &Foo{}")
 	}
 
-	if val.Kind() == reflect.Ptr {
+	for val.Kind() == reflect.Ptr {
 		if val.IsNil() {
 			v := reflect.New(val.Type().Elem())
 			// TODO: refactoring required to handle non initialized nil values like, `var foo *Foo`
