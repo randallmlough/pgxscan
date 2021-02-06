@@ -43,17 +43,17 @@ func Test_scanStruct(t *testing.T) {
 	fn := func(i ...interface{}) error {
 		return nil
 	}
-	if err := ScanStruct(fn, dst, cols); err != nil {
+	if err := ScanStruct(fn, dst, cols, true); err != nil {
 		t.Errorf("scanStruct() failed to scan. Reason:  %v", err)
 		return
 	}
 
-	if err := ScanStruct(fn, dst, []string{"id"}); err != nil {
+	if err := ScanStruct(fn, dst, []string{"id"}, true); err != nil {
 		t.Errorf("scanStruct() failed to scan. Reason:  %v", err)
 		return
 	}
 
-	if err := ScanStruct(fn, dst, nil); err == nil {
+	if err := ScanStruct(fn, dst, nil, true); err == nil {
 		t.Errorf("scanStruct() failed to scan. Reason:  %v", err)
 		return
 	}

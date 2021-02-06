@@ -48,6 +48,10 @@ ifneq ("$(EXPOSE)","")
 EXPOSE_PORTS=-p 5435:5432
 endif
 
+ifeq ("$(TEST_WHAT)","")
+TEST_WHAT=./...
+endif
+
 db-up:
 	docker run \
 		--rm \
@@ -80,4 +84,4 @@ test-go:
 		--workdir /test-go \
 		--env PG_URI="postgres://$(pg_user):$(pg_pass)@$(pg_container):5432/$(pg_db)?sslmode=disable" \
 		-it golang:1.14-buster \
-		go test -v ./...
+		go test $(TEST_WHAT)

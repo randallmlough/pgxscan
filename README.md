@@ -137,10 +137,10 @@ if err := pgxscan.NewScanner(rows).Scan(&dst); err != nil {
 ```
 
 #### Scan to struct with join table
-There's two ways to handle join tables. Either use the struct tag `scan:"notate"` or `scan:"follow"`. `scan notate` will dot notate the struct to something like `"table_one.column"` this is particularly useful if joining tables that have column name conflicts. However, you will have to alias the sql column to match.
+There's two ways to handle join tables. Either use the struct tag `scan:"notate"` or `scan:"follow"`. `scan notate` will dot notate the struct to something like `"table_one.column"` this is particularly useful if joining tables that have column name conflicts. However, you will have to alias the sql column to match (either individually or with special SQL notation explained below).
 `scan follow` wont dot notate and instead go into the struct and add the field names to the map. If you know you won't have column name conflicts this will work fine and no aliasing is required.
 
-**Example with aliasing**
+**Example with aliasing (one column at a time)**
 ```go
 stmt := `
 WITH usr AS (
@@ -188,6 +188,84 @@ if err := NewScanner(rows).Scan(&user); err != nil {
     return err
 }
 ```
+
+**Example with aliasing (SQL column notation syntax)**
+
+The following example is exactly the same as the one above, but with much less verbosity. It uses "notate:address" as the column name. 
+
+```go
+stmt := `
+SELECT 
+    users.*,
+    0 as "notate:address", -- prefix with "address." following columns
+    address.*              -- fields prefixed with "address.<field>"
+ FROM
+   users, address
+WHERE
+  users.id = $1 
+  AND address.user_id = users.id
+`
+// Note the aliased dot notated SELECT's for address, line_1, and city.
+rows, _ := conn.Query(context.Background(), stmt, 1)
+
+type (
+    Address struct {
+        ID    uint32
+        Line1 string `db:"line_1"`
+        City  string
+    }
+    User struct {
+        ID      uint32
+        Name    string
+        Email   string
+        Address Address `scan:"notate"` // table dot notates the struct
+    }
+)
+var user User
+scanner := NewScanner(rows, MatchAllColumns(false))  // To ignore address.user_id
+if err := scanner.Scan(&user); err != nil {
+    return err
+}
+```
+
+We decided to ignore unmatched columns in the SQL with *MatchAllColumns(false)* in order to ignore address.user_id column, which is returned by the query but it is not available in the struct. Otherwise the Scan method would fail. If all columns are present in the struct you don't need to initialize scanner like this.
+
+This SQL syntax allows any level of notations. You can disable by just naming a column "notate:" or use many levels like "notate:level1.level2.level3" and the notation will be prepended to following column names.
+
+*To use this notation, column value should be 0 (zero) and column name should start with "notate:"*.
+
+**Example of complex SQL notation**
+
+```sql
+      SELECT  123 as A,
+
+              0 as "notate:c1",  -- notate as "c1."
+              c1.*,
+              
+              0 as "notate:c1.c2",  -- notate as "c1.c2."
+              c2.*,
+              
+              0 as "notate:",    -- disable notations
+              456 as B,
+              
+              0 as "notate:c3",  -- notate as "c3.
+              c3.*
+```
+
+Imagine c1, c2 and c3 all have a column named A and B, thus, the mapping would be done as if the query was:
+```sql
+      SELECT  123 as A,
+              c1.A as "c1.A",
+              c1.B as "c1.B",
+              c2.A as "c1.c2.A",
+              c2.B as "c1.c2.B",
+              456 as B,
+              c3.A as "c3.A",
+              c3.B as "c3.B",
+```
+
+Although in this case the second example is more clear, imagine c1, c2 and c3 have many different field names some of them being the same.
+
 
 **Example without aliasing**
 ```go

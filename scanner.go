@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/randallmlough/sqlmaper"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -27,7 +28,8 @@ func unableToFindFieldError(col string) error {
 // either one can be passed as the argument and scanner will take care of the rest.
 func NewScanner(src Scanner, opts ...Option) Scanner {
 	cfg := &Config{
-		ReturnErrNoRowsForRows: true,
+		ReturnErrNoRowsForRows:  true,
+		MatchAllColumnsToStruct: true,
 	}
 	for _, opt := range opts {
 		opt.apply(cfg)
@@ -42,7 +44,8 @@ func NewScanner(src Scanner, opts ...Option) Scanner {
 }
 
 type Config struct {
-	ReturnErrNoRowsForRows bool
+	ReturnErrNoRowsForRows  bool
+	MatchAllColumnsToStruct bool
 }
 
 type Option interface {
@@ -63,10 +66,21 @@ func ErrNoRowsQuery(b bool) Option {
 	})
 }
 
+// MatchAllColumns sets whether or not a unableToFindFieldError error
+// should be returned on a query that has more columns than fields in the struct
+func MatchAllColumns(b bool) Option {
+	return optionFunc(func(cfg *Config) {
+		cfg.MatchAllColumnsToStruct = b
+	})
+}
+
 var ErrNoCols = errors.New("columns can not be nil")
 
 // ScanStruct will scan the current row into i.
-func ScanStruct(scan scannerFunc, i interface{}, cols []string) error {
+// When matchAllColumnsToStruct is false, it will not complain about extra columns
+// in the result set that are not mapped to the columns in the struct, or, said
+// another way, it will allow unmapped items, which can, sometimes, be convenient
+func ScanStruct(scan scannerFunc, i interface{}, cols []string, matchAllColumnsToStruct bool) error {
 	if cols == nil {
 		return ErrNoCols
 	}
@@ -79,8 +93,13 @@ func ScanStruct(scan scannerFunc, i interface{}, cols []string) error {
 	for idx, col := range cols {
 		data, ok := cm[col]
 		switch {
+		case strings.HasPrefix(col, QueryColumnNotatePrefix):
+			// notated columns are always skipped
+			scans[idx] = new(int8)
 		case !ok:
-			return unableToFindFieldError(col)
+			if matchAllColumnsToStruct {
+				return unableToFindFieldError(col)
+			}
 		default:
 			scans[idx] = reflect.New(data.GoType).Interface()
 		}

@@ -6,8 +6,6 @@ import (
 
 const schema = `
 		DROP TABLE IF EXISTS "test";
-		DROP TABLE IF EXISTS "address";
-		DROP TABLE IF EXISTS "users";
 		CREATE TABLE "test" (
 			"id" SERIAL PRIMARY KEY NOT NULL,
 			"int" INT,
@@ -36,6 +34,11 @@ const schema = `
 			"json_b" jsonb,
 			"map" jsonb
 		);
+
+		-- To test basic joins
+		DROP TABLE IF EXISTS "address";
+		DROP TABLE IF EXISTS "users";
+		
 		CREATE TABLE "users" (
 			"id" SERIAL PRIMARY KEY NOT NULL,
 			"name" VARCHAR,
@@ -60,6 +63,31 @@ const schema = `
 		   VALUES (1, 1, 'line01_user01', 'city01'),
 		          (2, 2, 'line02_user02', 'city02')
 		;
+
+		-- To test joins with conflicting column names
+		DROP TABLE IF EXISTS "conflicting1";
+		DROP TABLE IF EXISTS "conflicting2";
+		DROP TABLE IF EXISTS "conflicting3";
+
+		CREATE TABLE "conflicting1" (
+			"a" INT NOT NULL,
+			"b" INT NOT NULL
+		);
+
+		CREATE TABLE "conflicting2" (
+			"b" INT NOT NULL,
+			"c" INT NOT NULL
+		);
+
+		CREATE TABLE "conflicting3" (
+			"a" INT NOT NULL,
+			"b" INT NOT NULL,
+			"c" INT NOT NULL
+		);
+
+		INSERT INTO "conflicting1" (a, b) VALUES (0, 0);
+		INSERT INTO "conflicting2" (b, c) VALUES (1, 1);
+		INSERT INTO "conflicting3" (a, b, c) VALUES (2, 2, 2);
 	`
 
 var TestCols = []string{
