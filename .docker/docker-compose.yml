@@ -1,0 +1,33 @@
+version: "3"
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: pgxscan_postgres
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-password}
+      - POSTGRES_DB=${DB_NAME:-pgxscan}
+      - POSTGRES_PORT=${DB_PORT:-5432}
+    volumes:
+      - ./testdata.sql:/docker-entrypoint-initdb.d/testdata.sql
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - ${DB_PORT:-5432}:5432
+    networks:
+      - pgxscan_network
+  test:
+    build:
+      context: ../.
+      dockerfile: ./.docker/Dockerfile
+    environment:
+      - PG_URI=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-password}@pgxscan_postgres:${DB_PORT:-5432}/${DB_NAME:-pgxscan}?sslmode=disable
+    depends_on:
+      - postgres
+    networks:
+      - pgxscan_network
+volumes:
+  postgres-data:
+networks:
+  pgxscan_network:
+    driver: bridge

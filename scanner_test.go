@@ -1,44 +1,15 @@
 package pgxscan
 
 import (
-	"context"
-	"github.com/randallmlough/pgxscan/internal/test"
 	"testing"
 	"time"
+
+	"github.com/randallmlough/pgxscan/testdata"
 )
 
-func Test_NewScanner(t *testing.T) {
-	conn, err := test.NewConnection()
-	if err != nil {
-		t.Errorf("Test_New() failed to connect to DB. Reason:  %v", err)
-		return
-	}
-
-	if err := test.CreateTestDBSchema(); err != nil {
-		t.Errorf("Test_New() failed to create test db schema. Reason:  %v", err)
-		return
-	}
-
-	if err := test.CreateTestRows(); err != nil {
-		t.Errorf("Test_New() failed to insert test rows. Reason:  %v", err)
-		return
-	}
-
-	row := conn.QueryRow(context.Background(), `SELECT COUNT(*) FROM "test"`)
-	var count int
-	if err := NewScanner(row).Scan(&count); err != nil {
-		t.Errorf("Test_New() failed to scan into id. Reason:  %v", err)
-		return
-	}
-	if count != 2 {
-		t.Errorf("Test_New() wrong count returned. got: %v want: %v", count, 2)
-		return
-	}
-}
-
 func Test_scanStruct(t *testing.T) {
-	dst := &test.TestStruct{}
-	cols := test.TestCols
+	dst := &testdata.TestStruct{}
+	cols := testdata.TestCols
 
 	fn := func(i ...interface{}) error {
 		return nil
