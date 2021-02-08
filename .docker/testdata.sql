@@ -51,7 +51,8 @@ CREATE TABLE "public"."users" (
 INSERT INTO "public"."users" ("id", "name", "email") VALUES
 ('1', 'user01', 'user01@email.com'),
 ('2', 'user02', 'user02@email.com'),
-('3', 'user03', 'user03@email.com');
+('3', 'user03', 'user03@email.com'),
+('10', NULL, 'user03@email.com');
 
 
 DROP TABLE IF EXISTS "public"."address";

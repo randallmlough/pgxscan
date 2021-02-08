@@ -456,3 +456,53 @@ FROM
 		},
 	}, user)
 }
+
+func Test_rows_IdentifyNullColumn(t *testing.T) {
+	stmt := `
+	SELECT users.*
+	FROM users
+	WHERE users.id = $1
+	`
+	// user 10 has NULL name
+	rows, err := newTestDB(t).Query(context.Background(), stmt, 10)
+	require.NoError(t, err)
+
+	type User struct {
+		ID    uint32
+		Name  string // NULL cannot be handled here, thus, error
+		Email string
+	}
+
+	var user User
+	err = pgxscan.NewScanner(rows).Scan(&user)
+	require.Equal(
+		t,
+		err.Error(),
+		"can't scan into dest[1] (field 'name'): cannot assign NULL to *string",
+	)
+}
+
+func Test_rows_IdentifyWrongTypeForColumn(t *testing.T) {
+	stmt := `
+	SELECT users.*
+	FROM users
+	WHERE users.id = $1
+	`
+	// user 10 has NULL name
+	rows, err := newTestDB(t).Query(context.Background(), stmt, 1)
+	require.NoError(t, err)
+
+	type User struct {
+		ID    uint32
+		Name  string
+		Email int // this should be string! it will fail
+	}
+
+	var user User
+	err = pgxscan.NewScanner(rows).Scan(&user)
+	require.Equal(
+		t,
+		err.Error(),
+		"can't scan into dest[2] (field 'email'): unable to assign to *int",
+	)
+}
