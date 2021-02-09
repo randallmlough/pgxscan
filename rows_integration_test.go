@@ -457,6 +457,110 @@ FROM
 	}, user)
 }
 
+func Test_rows_JoinTableWithNotationColumn(t *testing.T) {
+	stmt := `
+	SELECT users.*,
+	       0 as "notate:address", -- delimiter column
+	       address.*
+	FROM users, address
+	WHERE users.id = $1
+	  AND address.user_id = users.id
+	`
+	rows, err := newTestDB(t).Query(context.Background(), stmt, 1)
+	require.NoError(t, err)
+
+	type (
+		Address struct {
+			ID    uint32
+			Line1 string `db:"line_1"`
+			City  string
+		}
+		User struct {
+			ID      uint32
+			Name    string
+			Email   string
+			Address Address `scan:"notate"`
+		}
+	)
+	var user User
+	scanner := pgxscan.NewScanner(rows, pgxscan.MatchAllColumns(false))
+	if err := scanner.Scan(&user); err != nil {
+		require.NoError(t, err)
+	}
+
+	require.Equal(t, User{
+		ID:    1,
+		Name:  "user01",
+		Email: "user01@email.com",
+		Address: Address{
+			ID:    1,
+			Line1: "line01_user01",
+			City:  "city01",
+		},
+	}, user)
+}
+
+func Test_rows_JoinConflictTable(t *testing.T) {
+	stmt := `
+      SELECT  123 as A,
+
+              0 as "notate:c1",
+              c1.*,
+
+              -127 as "notate:c2",  -- the number, as long as it is [-127, 128] it does not matter
+              c2.*,
+
+              0 as "notate:", -- remove notations (just for the sake of testing)
+              456 as B,
+
+              3 as "notate:c3",
+              c3.*
+
+        FROM conflicting1 as c1
+   LEFT JOIN conflicting2 as c2 ON c2.b = c1.b + 1
+   LEFT JOIN conflicting3 as c3 on c3.a = c1.a + 2
+       WHERE c1.a = 0
+		`
+	rows, err := newTestDB(t).Query(context.Background(), stmt)
+	require.NoError(t, err)
+
+	type (
+		Conflicting1 struct {
+			A uint32
+			B uint32
+		}
+		Conflicting2 struct {
+			B uint32
+			C uint32
+		}
+		Conflicting3 struct {
+			A uint32
+			B uint32
+			C uint32
+		}
+		Joined struct {
+			A  uint32
+			C1 Conflicting1 `scan:"notate" db:"c1"`
+			C2 Conflicting2 `scan:"notate" db:"c2"`
+			C3 Conflicting3 `scan:"notate" db:"c3"`
+			B  uint32
+		}
+	)
+
+	var joined Joined
+	if err := pgxscan.NewScanner(rows).Scan(&joined); err != nil {
+		require.NoError(t, err)
+	}
+
+	require.Equal(t, Joined{
+		A:  123,
+		C1: Conflicting1{A: 0, B: 0},
+		C2: Conflicting2{B: 1, C: 1},
+		B:  456,
+		C3: Conflicting3{A: 2, B: 2, C: 2},
+	}, joined)
+}
+
 func Test_rows_IdentifyNullColumn(t *testing.T) {
 	stmt := `
 	SELECT users.*

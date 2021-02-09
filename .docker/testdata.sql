@@ -71,3 +71,28 @@ CREATE TABLE "public"."address" (
 INSERT INTO "public"."address" ("id", "user_id", "line_1", "city") VALUES
 ('1', '1', 'line01_user01', 'city01'),
 ('2', '2', 'line02_user02', 'city02');
+
+-- Tables to joins with conflicting column names
+DROP TABLE IF EXISTS "public"."conflicting1";
+DROP TABLE IF EXISTS "public"."conflicting2";
+DROP TABLE IF EXISTS "public"."conflicting3";
+
+CREATE TABLE "public"."conflicting1" (
+    "a" INT NOT NULL,
+    "b" INT NOT NULL
+);
+
+CREATE TABLE "public"."conflicting2" (
+    "b" INT NOT NULL,
+    "c" INT NOT NULL
+);
+
+CREATE TABLE "public"."conflicting3" (
+    "a" INT NOT NULL,
+    "b" INT NOT NULL,
+    "c" INT NOT NULL
+);
+
+INSERT INTO "public"."conflicting1" (a, b) VALUES (0, 0);
+INSERT INTO "public"."conflicting2" (b, c) VALUES (1, 1);
+INSERT INTO "public"."conflicting3" (a, b, c) VALUES (2, 2, 2);
