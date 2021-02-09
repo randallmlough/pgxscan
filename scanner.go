@@ -6,6 +6,8 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/randallmlough/sqlmaper"
 	"reflect"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -106,6 +108,21 @@ func ScanStruct(scan scannerFunc, i interface{}, cols []string, matchAllColumnsT
 	}
 
 	if err := scan(scans...); err != nil {
+		// identify the offending field in case types do not match, very useful
+		// when using this library
+		if strings.HasPrefix(err.Error(), "can't scan into dest[") {
+			// TODO: use ScanArgError if made public (see https://github.com/jackc/pgx/issues/931)
+			//       to avoid all this parsing
+			splitted := strings.Split(err.Error(), ":")
+			re := regexp.MustCompile(`\[(\d+)\]`)
+			errCol, errConv := strconv.Atoi(
+				strings.Trim(string(re.Find([]byte(splitted[0]))), "[]"),
+			)
+			if errConv != nil {
+				return err
+			}
+			return fmt.Errorf("%s (field '%s'):%s", splitted[0], cols[errCol], splitted[1])
+		}
 		return err
 	}
 
