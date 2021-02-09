@@ -1,7 +1,7 @@
 name: Format
 on: [pull_request]
 jobs:
-  lint:
+  fmt:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
