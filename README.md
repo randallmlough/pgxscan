@@ -189,7 +189,8 @@ if err := NewScanner(rows).Scan(&user); err != nil {
 }
 ```
 
-**Example with aliasing (SQL column notation syntax)**
+### Example with aliasing
+**(SQL column notation syntax)**
 
 The following example is exactly the same as the one above, but with much less verbosity. It uses "notate:address" as the column name. 
 
