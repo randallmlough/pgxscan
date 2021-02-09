@@ -457,7 +457,6 @@ FROM
 	}, user)
 }
 
-
 func Test_rows_JoinTableWithNotationColumn(t *testing.T) {
 	stmt := `
 	SELECT users.*,
