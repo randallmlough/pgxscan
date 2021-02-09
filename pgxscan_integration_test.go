@@ -33,13 +33,13 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func newTestDB(t *testing.T) *pgxpool.Conn {
+func newTestDB(tb testing.TB) *pgxpool.Conn {
 	conn, err := testDB.Acquire(ctxb)
 	if err != nil {
-		t.Fatalf("error aquiring a new connection: %v", err)
+		tb.Fatalf("error aquiring a new connection: %v", err)
 	}
 
-	t.Cleanup(func() {
+	tb.Cleanup(func() {
 		conn.Release()
 	})
 
