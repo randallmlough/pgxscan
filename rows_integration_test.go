@@ -610,3 +610,151 @@ func Test_rows_IdentifyWrongTypeForColumn(t *testing.T) {
 		"can't scan into dest[2] (field 'email'): unable to assign to *int",
 	)
 }
+
+func Benchmark_rows_JoinPgxBaseline(b *testing.B) {
+	type (
+		Address struct {
+			ID    uint32
+			Line1 string
+			City  string
+		}
+		User struct {
+			ID      uint32
+			Name    string
+			Email   string
+			Address Address
+		}
+	)
+
+	stmt := `
+WITH usr AS (
+	SELECT
+		id, name, email
+	FROM
+		"users"
+	WHERE
+		"id" = $1
+),
+addr AS (
+	SELECT
+		"address"."id" AS "address.id",
+		"line_1" AS "address.line_1",
+		"city" AS "address.city"
+	FROM
+		"address", usr
+	WHERE
+		"user_id" = usr."id"
+)
+SELECT
+	usr.*, addr.*
+FROM
+	usr, addr
+`
+
+	var user User
+	testDb := newTestDB(b)
+	for i := 0; i < b.N; i++ {
+		rows, err := testDb.Query(context.Background(), stmt, 1)
+		require.NoError(b, err)
+
+		if rows.Next() {
+			err := rows.Scan(
+				&user.ID,
+				&user.Name,
+				&user.Email,
+				&user.Address.ID,
+				&user.Address.Line1,
+				&user.Address.City,
+			)
+			require.NoError(b, err)
+		}
+	}
+}
+
+func Benchmark_rows_JoinTableWithStructNotation(b *testing.B) {
+	type (
+		Address struct {
+			ID    uint32
+			Line1 string `db:"line_1"`
+			City  string
+		}
+		User struct {
+			ID      uint32
+			Name    string
+			Email   string
+			Address Address `scan:"notate"`
+		}
+	)
+
+	stmt := `
+WITH usr AS (
+	SELECT
+		*
+	FROM
+		"users"
+	WHERE
+		"id" = $1
+),
+addresses AS (
+	SELECT
+		"address"."id" AS "address.id",
+		"line_1" AS "address.line_1",
+		"city" AS "address.city"
+	FROM
+		"address", usr
+	WHERE
+		"user_id" = usr."id"
+)
+SELECT
+	usr.*, addresses.*
+FROM
+	usr,
+	addresses`
+
+	var user User
+	testDb := newTestDB(b)
+	for i := 0; i < b.N; i++ {
+		rows, err := testDb.Query(context.Background(), stmt, 1)
+		require.NoError(b, err)
+
+		scanner := pgxscan.NewScanner(rows)
+		err = scanner.Scan(&user)
+		require.NoError(b, err)
+	}
+}
+
+func Benchmark_rows_JoinTableWithSqlNotation(b *testing.B) {
+	type (
+		Address struct {
+			ID    uint32
+			Line1 string `db:"line_1"`
+			City  string
+		}
+		User struct {
+			ID      uint32
+			Name    string
+			Email   string
+			Address Address `scan:"notate"`
+		}
+	)
+
+	stmt := `
+	SELECT users.*,
+	       0 as "notate:address", -- delimiter column
+	       address.*
+	FROM users, address
+	WHERE users.id = $1
+	  AND address.user_id = users.id
+	`
+
+	var user User
+	testDb := newTestDB(b)
+	for i := 0; i < b.N; i++ {
+		rows, err := testDb.Query(context.Background(), stmt, 1)
+		require.NoError(b, err)
+
+		scanner := pgxscan.NewScanner(rows, pgxscan.MatchAllColumns(false))
+		err = scanner.Scan(&user)
+		require.NoError(b, err)
+	}
+}
