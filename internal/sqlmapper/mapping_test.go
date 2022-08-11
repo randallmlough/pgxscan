@@ -2,12 +2,13 @@ package sqlmaper
 
 import (
 	"database/sql"
-	"github.com/stretchr/testify/suite"
 	"reflect"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/suite"
 )
 
 type reflectTest struct {
@@ -1163,12 +1164,14 @@ func (rt *reflectTest) TestGetColumnMap_withTaggedStructPointerField() {
 		"test_embedded.bool": {
 			ColumnName: "test_embedded.bool",
 			FieldIndex: []int{0, 0},
-			GoType:     reflect.TypeOf(true),
+			GoType:     reflect.PtrTo(reflect.TypeOf(true)),
+			Optional:   true,
 		},
 		"test_embedded.valuer": {
 			ColumnName: "test_embedded.valuer",
 			FieldIndex: []int{0, 1},
-			GoType:     reflect.TypeOf(&sql.NullString{}),
+			GoType:     reflect.PtrTo(reflect.TypeOf(&sql.NullString{})),
+			Optional:   true,
 		},
 		"bool": {
 			ColumnName: "bool",

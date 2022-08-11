@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package pgxscan_test
@@ -581,8 +582,8 @@ func Test_rows_IdentifyNullColumn(t *testing.T) {
 	err = pgxscan.NewScanner(rows).Scan(&user)
 	require.Equal(
 		t,
+		"can't scan into dest[1] (field 'name'): cannot scan null into *string",
 		err.Error(),
-		"can't scan into dest[1] (field 'name'): cannot assign NULL to *string",
 	)
 }
 
@@ -606,8 +607,8 @@ func Test_rows_IdentifyWrongTypeForColumn(t *testing.T) {
 	err = pgxscan.NewScanner(rows).Scan(&user)
 	require.Equal(
 		t,
-		err.Error(),
 		"can't scan into dest[2] (field 'email'): unable to assign to *int",
+		err.Error(),
 	)
 }
 
