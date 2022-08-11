@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v4"
-	"github.com/randallmlough/sqlmaper"
+	"github.com/randallmlough/pgxscan/internal/sqlmapper"
 	"reflect"
 	"regexp"
 	"strconv"
