@@ -13,6 +13,7 @@ type (
 		ColumnName string
 		FieldIndex []int
 		GoType     reflect.Type
+		Optional   bool
 	}
 	ColumnMap map[string]ColumnData
 )
@@ -184,12 +185,12 @@ func GetColumnMap(i interface{}) (ColumnMap, error) {
 	structMapCacheLock.Lock()
 	defer structMapCacheLock.Unlock()
 	if _, ok := structMapCache[t]; !ok {
-		structMapCache[t] = createColumnMap(t, []int{}, []string{})
+		structMapCache[t] = createColumnMap(t, []int{}, []string{}, false)
 	}
 	return structMapCache[t], nil
 }
 
-func createColumnMap(t reflect.Type, fieldIndex []int, prefixes []string) ColumnMap {
+func createColumnMap(t reflect.Type, fieldIndex []int, prefixes []string, optional bool) ColumnMap {
 	cm, n := ColumnMap{}, t.NumField()
 	var subColMaps []ColumnMap
 	for i := 0; i < n; i++ {
@@ -217,9 +218,9 @@ func createColumnMap(t reflect.Type, fieldIndex []int, prefixes []string) Column
 
 				if dbTag.IsNamed() && !options.Contains(followTagName) {
 					subPrefixes := append(prefixes, columnName)
-					subColMaps = append(subColMaps, createColumnMap(f.Type, subFieldIndexes, subPrefixes))
+					subColMaps = append(subColMaps, createColumnMap(f.Type, subFieldIndexes, subPrefixes, false))
 				} else {
-					subColMaps = append(subColMaps, createColumnMap(f.Type, subFieldIndexes, prefixes))
+					subColMaps = append(subColMaps, createColumnMap(f.Type, subFieldIndexes, prefixes, false))
 				}
 
 			} else if !implementsScanner(f.Type) && (isNotated() || options.Contains(notateTagName)) && !options.Contains(embedTagName) {
@@ -227,9 +228,9 @@ func createColumnMap(t reflect.Type, fieldIndex []int, prefixes []string) Column
 				subPrefixes := append(prefixes, columnName)
 				var subCm ColumnMap
 				if f.Type.Kind() == reflect.Ptr {
-					subCm = createColumnMap(f.Type.Elem(), subFieldIndexes, subPrefixes)
+					subCm = createColumnMap(f.Type.Elem(), subFieldIndexes, subPrefixes, true)
 				} else {
-					subCm = createColumnMap(f.Type, subFieldIndexes, subPrefixes)
+					subCm = createColumnMap(f.Type, subFieldIndexes, subPrefixes, false)
 				}
 				if len(subCm) != 0 {
 					subColMaps = append(subColMaps, subCm)
@@ -238,10 +239,17 @@ func createColumnMap(t reflect.Type, fieldIndex []int, prefixes []string) Column
 			} else if f.PkgPath == "" {
 				// if PkgPath is empty then it is an exported field
 				columnName = strings.Join(append(prefixes, columnName), ".")
+				var goType reflect.Type
+				if optional {
+					goType = reflect.PtrTo(f.Type)
+				} else {
+					goType = f.Type
+				}
 				cm[columnName] = ColumnData{
 					ColumnName: columnName,
 					FieldIndex: append(fieldIndex, f.Index...),
-					GoType:     f.Type,
+					GoType:     goType,
+					Optional:   optional,
 				}
 			}
 		}

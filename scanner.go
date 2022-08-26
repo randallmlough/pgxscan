@@ -3,13 +3,12 @@ package pgxscan
 import (
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v4"
-	"github.com/randallmlough/pgxscan/internal/sqlmapper"
 	"reflect"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v4"
+	"github.com/randallmlough/pgxscan/internal/sqlmapper"
 )
 
 type (
@@ -110,25 +109,24 @@ func ScanStruct(scan scannerFunc, i interface{}, cols []string, matchAllColumnsT
 	if err := scan(scans...); err != nil {
 		// identify the offending field in case types do not match, very useful
 		// when using this library
-		if strings.HasPrefix(err.Error(), "can't scan into dest[") {
-			// TODO: use ScanArgError if made public (see https://github.com/jackc/pgx/issues/931)
-			//       to avoid all this parsing
-			splitted := strings.Split(err.Error(), ":")
-			re := regexp.MustCompile(`\[(\d+)\]`)
-			errCol, errConv := strconv.Atoi(
-				strings.Trim(string(re.Find([]byte(splitted[0]))), "[]"),
-			)
-			if errConv != nil {
-				return err
-			}
-			return fmt.Errorf("%s (field '%s'):%s", splitted[0], cols[errCol], splitted[1])
+		var scanErr pgx.ScanArgError
+		if errors.As(err, &scanErr) {
+			return fmt.Errorf("can't scan into dest[%d] (field '%s'): %s", scanErr.ColumnIndex, cols[scanErr.ColumnIndex], scanErr.Err)
 		}
 		return err
 	}
 
 	record := make(map[string]interface{}, len(cols))
 	for index, col := range cols {
-		record[col] = scans[index]
+		if cm[col].Optional {
+			scanVal := reflect.ValueOf(scans[index])
+			// If the type is optional, then we selectively unwind the pointer chain
+			if !scanVal.Elem().IsNil() {
+				record[col] = scanVal.Elem().Interface()
+			}
+		} else {
+			record[col] = scans[index]
+		}
 	}
 
 	sqlmaper.AssignStructVals(i, record, cm)
